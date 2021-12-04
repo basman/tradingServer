@@ -7,7 +7,7 @@ import (
 
 func AddUser(login, password, email string) {
 	db := storage.GetDatabase()
-	if err := db.AddUser(login, password, email); err != nil {
+	if err := db.AddAccount(login, password, email); err != nil {
 		log.Fatalf("could not create user account: %v", err)
 	}
 

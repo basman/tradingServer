@@ -4,6 +4,7 @@ import (
 	"crypto/sha1"
 	"database/sql"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/shopspring/decimal"
@@ -315,7 +316,11 @@ func (db *Database) SetAssetPrice(assetName string, price decimal.Decimal) error
 	return nil
 }
 
-func (db *Database) AddUser(login string, password string, email string) error {
+func (db *Database) AddAccount(login string, password string, email string) error {
+	if acc, _ := db.GetAccount(login); acc != nil {
+		return errors.New("account exists already")
+	}
+
 	if password != "" {
 		password = HashEncodePassword(password)
 	}
