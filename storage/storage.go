@@ -179,7 +179,9 @@ func (db *Database) GetAccounts() ([]*entity.Account, error) {
 			log.Fatalf("scan user's row failed: %v", err)
 		}
 
-		db.getAccountsAssets(acc)
+		if err = db.getAccountsAssets(&acc); err != nil {
+			return nil, err
+		}
 
 		accList = append(accList, &acc)
 	}
@@ -187,13 +189,13 @@ func (db *Database) GetAccounts() ([]*entity.Account, error) {
 	return accList, nil
 }
 
-func (db *Database) getAccountsAssets(acc entity.Account) {
+func (db *Database) getAccountsAssets(acc *entity.Account) error {
 	acc.Assets = []*entity.UserAsset{}
 
 	q := `SELECT asset,amount FROM accounts WHERE login = ? ORDER BY asset`
 	res, err := db.Query(q, acc.Login)
 	if err != nil {
-		log.Fatalf("accounts query failed: %v", err)
+		return fmt.Errorf("query account's assets failed: %v", err)
 	}
 	defer res.Close()
 
@@ -201,11 +203,13 @@ func (db *Database) getAccountsAssets(acc entity.Account) {
 		ass := &entity.UserAsset{}
 
 		if err = res.Scan(&ass.Name, &ass.Amount); err != nil {
-			log.Fatalf("scan account's asset failed: %v", err)
+			return fmt.Errorf("scan account's asset failed: %v", err)
 		}
 
 		acc.Assets = append(acc.Assets, ass)
 	}
+
+	return nil
 }
 
 func (db *Database) GetAccount(login string) (*entity.Account, error) {
@@ -231,21 +235,8 @@ func (db *Database) GetAccount(login string) (*entity.Account, error) {
 		log.Fatalf("scan user's balance failed: %v", err)
 	}
 
-	q2 := `SELECT asset,amount FROM accounts WHERE login = ? ORDER BY asset`
-	res2, err := db.Query(q2, login)
-	if err != nil {
-		log.Fatalf("accounts query failed: %v", err)
-	}
-	defer res2.Close()
-
-	for res2.Next() {
-		ass := &entity.UserAsset{}
-
-		if err = res2.Scan(&ass.Name, &ass.Amount); err != nil {
-			log.Fatalf("scan account's asset failed: %v", err)
-		}
-
-		acc.Assets = append(acc.Assets, ass)
+	if err = db.getAccountsAssets(&acc); err != nil {
+		return nil, err
 	}
 
 	return &acc, nil
