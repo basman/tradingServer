@@ -323,3 +323,18 @@ func (db *Database) SetAssetPrice(assetName string, price decimal.Decimal) error
 
 	return nil
 }
+
+func (db *Database) AddUser(login string, password string, email string) error {
+	if password != "" {
+		password = HashEncodePassword(password)
+	}
+
+	var emailOrNull *string
+	if email != "" {
+		emailOrNull = &email
+	}
+
+	q := "INSERT INTO users (login,password,balance,email) VALUES (?,?,?,?)"
+	_, err := db.Exec(q, login, password, 100, emailOrNull)
+	return err
+}
