@@ -12,4 +12,5 @@ func AddUser(login, password, email string) {
 	}
 
 	log.Printf("user account '%v' has been created\n", login)
+	db.Close()
 }
