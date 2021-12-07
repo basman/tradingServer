@@ -24,7 +24,8 @@ func BuyAsset(acc *entity.Account, assetName string, amount decimal.Decimal) err
 	asset := acc.GetOrCreateUserAsset(assetName)
 
 	asset.Amount = asset.Amount.Add(amount)
-	acc.Balance = acc.Balance.Sub(amount.Mul(assetPrice))
+	payedPrice := amount.Mul(assetPrice)
+	acc.Balance = acc.Balance.Sub(payedPrice)
 
 	err = db.SaveAccount(*acc)
 	if err != nil {
@@ -35,9 +36,11 @@ func BuyAsset(acc *entity.Account, assetName string, amount decimal.Decimal) err
 		Time:   time.Now().Format(time.RFC3339),
 		Login:  acc.Login,
 		Action: "buy",
-		Price:  assetPrice.InexactFloat64(),
+		PricePerUnit:  assetPrice.InexactFloat64(),
+		PricePayed:  payedPrice.InexactFloat64(),
 		Amount: asset.Amount.InexactFloat64(),
 		Asset:  assetName,
+		Balance: acc.Balance.InexactFloat64(),
 	})
 }
 
@@ -56,7 +59,8 @@ func SellAsset(acc *entity.Account, assetName string, amount decimal.Decimal) er
 	}
 
 	asset.Amount = asset.Amount.Sub(amount)
-	acc.Balance = acc.Balance.Add(amount.Mul(assetPrice))
+	payedPrice := amount.Mul(assetPrice)
+	acc.Balance = acc.Balance.Add(payedPrice)
 
 	err = db.SaveAccount(*acc)
 	if err != nil {
@@ -67,8 +71,10 @@ func SellAsset(acc *entity.Account, assetName string, amount decimal.Decimal) er
 		Time:   time.Now().Format(time.RFC3339),
 		Login:  acc.Login,
 		Action: "sell",
-		Price:  assetPrice.InexactFloat64(),
+		PricePerUnit:  assetPrice.InexactFloat64(),
+		PricePayed:  payedPrice.InexactFloat64(),
 		Amount: asset.Amount.InexactFloat64(),
 		Asset:  assetName,
+		Balance: acc.Balance.InexactFloat64(),
 	})
 }

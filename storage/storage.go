@@ -119,9 +119,11 @@ func (db *Database) initDatabase() {
 	time VARCHAR(64),
 	login VARCHAR(64),
 	action VARCHAR(64),
-	price REAL,
+	unit_price REAL,
+	payed_price REAL,
 	amount REAL,
-	asset VARCHAR(64)
+	asset VARCHAR(64),
+	balance REAL
 )`
 	_, err = db.Exec(query6)
 	if err != nil {
@@ -133,14 +135,24 @@ type TransactionLogEntry struct {
 	Time   string
 	Login  string
 	Action string
-	Price  float64
+	PricePerUnit  float64
+	PricePayed float64
 	Amount float64
 	Asset  string
+	Balance float64
 }
 
 func (db *Database) LogTransaction(entry TransactionLogEntry) error {
-	q := `INSERT INTO transaction_log (time,login,action,price,amount,asset) VALUES (?,?,?,?,?,?)`
-	_, err := db.Exec(q, entry.Time, entry.Login, entry.Action, entry.Price, entry.Amount, entry.Asset)
+	q := `INSERT INTO transaction_log (time,login,action,unit_price,payed_price,amount,asset,balance) VALUES (?,?,?,?,?,?,?,?)`
+	_, err := db.Exec(q,
+		entry.Time,
+		entry.Login,
+		entry.Action,
+		entry.PricePerUnit,
+		entry.PricePayed,
+		entry.Amount,
+		entry.Asset,
+		entry.Balance)
 	if err != nil {
 		return fmt.Errorf("write transaction log failed: %v", err)
 	}
