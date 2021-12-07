@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"sync"
+	"time"
 	"tradingServer/entity"
 )
 
@@ -173,6 +174,7 @@ func (db *Database) GetAssets() ([]entity.MarketAsset, error) {
 	}
 	defer res.Close()
 
+	now := time.Now()
 	for res.Next() {
 		var n string
 		var p float64
@@ -180,7 +182,7 @@ func (db *Database) GetAssets() ([]entity.MarketAsset, error) {
 			log.Printf("scan assets failed: %v", err)
 			return nil, err
 		}
-		assets = append(assets, entity.MarketAsset{Name: n, Price: decimal.NewFromFloat(p)})
+		assets = append(assets, entity.MarketAsset{Name: n, Price: decimal.NewFromFloat(p), When: now})
 	}
 
 	return assets, nil
