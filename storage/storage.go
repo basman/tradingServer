@@ -114,20 +114,37 @@ func (db *Database) initDatabase() {
 		log.Fatalf("could not create price_history table: %v", err)
 	}
 	 */
+
+	query6 := `CREATE TABLE transaction_log (
+	time VARCHAR(64),
+	login VARCHAR(64),
+	action VARCHAR(64),
+	price REAL,
+	amount REAL,
+	asset VARCHAR(64)
+)`
+	_, err = db.Exec(query6)
+	if err != nil {
+		log.Fatalf("failed to create table transaction_log: %v", err)
+	}
 }
 
-func HashEncodePassword(pw string) string {
-	h := sha1.Sum([]byte(pw))
+type TransactionLogEntry struct {
+	Time   string
+	Login  string
+	Action string
+	Price  float64
+	Amount float64
+	Asset  string
+}
 
-	var mimeEncodedHash = &strings.Builder{}
-	enc := base64.NewEncoder(base64.StdEncoding, mimeEncodedHash)
-	_, err := enc.Write(h[:])
+func (db *Database) LogTransaction(entry TransactionLogEntry) error {
+	q := `INSERT INTO transaction_log (time,login,action,price,amount,asset) VALUES (?,?,?,?,?,?)`
+	_, err := db.Exec(q, entry.Time, entry.Login, entry.Action, entry.Price, entry.Amount, entry.Asset)
 	if err != nil {
-		log.Printf("password hashing failed: %v", err)
-		return ""
+		return fmt.Errorf("write transaction log failed: %v", err)
 	}
-
-	return mimeEncodedHash.String()
+	return nil
 }
 
 func (db *Database) GetAssets() ([]entity.MarketAsset, error) {
