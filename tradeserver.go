@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"tradingServer/server"
@@ -29,12 +30,26 @@ func runServer() {
 	s.Run()
 }
 
+func usage() {
+	fmt.Println(`usage: ./tradingServer <command> <options...>
+commands:
+	adduser <login> <password> [<email>]
+		Create new user account.
+	setpw <login> <password>
+		Reset user's password.
+	setemail <login> <email>
+		Update user's email address.
+
+	Without any sub command given the server will start up and wait for incoming requests.`)
+}
+
 func main() {
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
 		case "adduser":
 			if len(os.Args) < 4 {
-				log.Fatalf("missing arguments: %v adduser <login> <password> [<email>]\n", os.Args[0])
+				fmt.Printf("missing arguments: %v adduser <login> <password> [<email>]\n", os.Args[0])
+				os.Exit(1)
 			}
 
 			login, password := os.Args[2], os.Args[3]
@@ -43,6 +58,29 @@ func main() {
 				email = os.Args[4]
 			}
 			serviceUser.AddUser(login, password, email)
+		case "setpw":
+			if len(os.Args) < 3 {
+				fmt.Printf("missing arguments: %v setpw <login> <password>\n", os.Args[0])
+				os.Exit(1)
+			}
+			login, password := os.Args[2], os.Args[3]
+			serviceUser.ChangeUser(login, password, "")
+		case "setemail":
+			if len(os.Args) < 3 {
+				fmt.Printf("missing arguments: %v setemail <login> <email>\n", os.Args[0])
+				os.Exit(1)
+			}
+			login, email := os.Args[2], os.Args[3]
+			serviceUser.ChangeUser(login, "", email)
+		case "help":
+			fallthrough
+		case "-help":
+			fallthrough
+		case "--help":
+			fallthrough
+		case "-h":
+			usage()
+			return
 		default:
 			log.Fatalf("unknown subcommand '%v'\n", os.Args[1])
 		}

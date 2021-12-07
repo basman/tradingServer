@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gin-gonic/gin"
-	"github.com/shopspring/decimal"
 	"log"
 	"net/http"
 	"strings"
@@ -45,40 +44,27 @@ func (s *server) AuthRequired() gin.HandlerFunc {
 			return
 		}
 
-		q := `SELECT login,password,balance FROM users WHERE login = ?`
-		res, err := s.db.Query(q, login)
+		acc, err := s.db.GetAccount(login)
 		if err != nil {
 			log.Printf("login query failed: %v", err)
 			c.AbortWithStatus(http.StatusInternalServerError)
 			return
 		}
-		defer res.Close()
-
-		if !res.Next() {
+		if acc == nil {
 			c.Header("WWW-Authenticate","Basic realm=\"Hail to the king!\"")
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
-
-		var loginDb, passwordDb string
-		var balanceDb float64
-		err = res.Scan(&loginDb, &passwordDb, &balanceDb)
-		if err != nil {
-			log.Printf("login result scan failed: %v", err)
-			c.AbortWithStatus(http.StatusInternalServerError)
-			return
-		}
-		res.Close() // required in addition to "defer res.Close()" above or any SQL write operation will fail
 
 		pwHashed := storage.HashEncodePassword(pw)
-		if pwHashed != passwordDb {
+		if pwHashed != acc.Password {
 			c.Header("WWW-Authenticate","Basic realm=\"Hail to the king!\"")
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
 
-		c.Set("login", loginDb)
-		c.Set("balance", decimal.NewFromFloat(balanceDb))
+		c.Set("login", acc.Login)
+		c.Set("balance", acc.Balance)
 
 		c.Next()
 	}

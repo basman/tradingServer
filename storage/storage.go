@@ -217,7 +217,7 @@ func (db *Database) GetAccount(login string) (*entity.Account, error) {
 	dbMu.Lock()
 	defer dbMu.Unlock()
 
-	q1 := `SELECT balance FROM users WHERE login = ?`
+	q1 := `SELECT password, email, balance FROM users WHERE login = ?`
 	res1, err := db.Query(q1, login)
 	if err != nil {
 		log.Fatalf("users query failed: %v", err)
@@ -232,7 +232,7 @@ func (db *Database) GetAccount(login string) (*entity.Account, error) {
 		Assets: []*entity.UserAsset{},
 	}
 
-	if err = res1.Scan(&acc.Balance); err != nil {
+	if err = res1.Scan(&acc.Password, &acc.Email, &acc.Balance); err != nil {
 		log.Fatalf("scan user's balance failed: %v", err)
 	}
 
@@ -332,5 +332,31 @@ func (db *Database) AddAccount(login string, password string, email string) erro
 
 	q := "INSERT INTO users (login,password,balance,email) VALUES (?,?,?,?)"
 	_, err := db.Exec(q, login, password, 100, emailOrNull)
+	return err
+}
+
+func (db *Database) UpdateAccount(login, password, email string) error {
+	if password == "" && email == "" {
+		return errors.New("either password or email have to be set")
+	}
+
+	acc, err := db.GetAccount(login)
+	if err != nil {
+		return err
+	}
+	if acc == nil {
+		return fmt.Errorf("login %v not found")
+	}
+
+	if email != "" {
+		acc.Email = email
+	}
+
+	if password != "" {
+		acc.Password = HashEncodePassword(password)
+	}
+
+	q := "UPDATE users set (password,email) VALUES (?,?) WHERE login = ?"
+	_, err = db.Exec(q, acc.Email, acc.Password, login)
 	return err
 }

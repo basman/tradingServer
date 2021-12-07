@@ -8,9 +8,11 @@ type UserAsset struct {
 }
 
 type Account struct {
-	Login   string
-	Balance decimal.Decimal
-	Assets  []*UserAsset
+	Login    string
+	Email    string
+	Password string
+	Balance  decimal.Decimal
+	Assets   []*UserAsset
 }
 
 func (acc *Account) GetOrCreateUserAsset(assetName string) *UserAsset {
