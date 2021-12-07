@@ -9,7 +9,6 @@ import (
 	"log"
 	"net/http"
 	"strings"
-	"tradingServer/storage"
 )
 
 func (s *server) DbTransaction() gin.HandlerFunc {
@@ -56,8 +55,7 @@ func (s *server) AuthRequired() gin.HandlerFunc {
 			return
 		}
 
-		pwHashed := storage.HashEncodePassword(pw)
-		if pwHashed != acc.Password {
+		if !acc.VerifyPassword(pw) {
 			c.Header("WWW-Authenticate","Basic realm=\"Hail to the king!\"")
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return

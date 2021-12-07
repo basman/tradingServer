@@ -1,16 +1,13 @@
 package storage
 
 import (
-	"crypto/sha1"
 	"database/sql"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/shopspring/decimal"
 	"log"
 	"os"
-	"strings"
 	"sync"
 	"tradingServer/entity"
 )
@@ -71,7 +68,7 @@ func (db *Database) initDatabase() {
 	}
 
 	query2 := "INSERT INTO users (login,password,balance) VALUES ('test',?,?)"
-	_, err = db.Exec(query2, HashEncodePassword("test"), 100)
+	_, err = db.Exec(query2, entity.HashEncodePassword("test"), 100)
 	if err != nil {
 		log.Fatalf("could not insert into users table: %v", err)
 	}
@@ -160,11 +157,11 @@ func (db *Database) GetAssets() ([]entity.MarketAsset, error) {
 	return assets, nil
 }
 
-func (db *Database) GetAccounts() ([]*entity.Account, error) {
+func (db *Database) GetAccounts() ([]*entity.PublicAccount, error) {
 	dbMu.Lock()
 	defer dbMu.Unlock()
 
-	var accList []*entity.Account
+	var accList []*entity.PublicAccount
 
 	q := `SELECT login, balance FROM users ORDER BY balance DESC`
 	res, err := db.Query(q)
@@ -174,7 +171,7 @@ func (db *Database) GetAccounts() ([]*entity.Account, error) {
 	defer res.Close()
 
 	for res.Next() {
-		acc := entity.Account{}
+		acc := entity.PublicAccount{}
 
 		if err = res.Scan(&acc.Login, &acc.Balance); err != nil {
 			log.Fatalf("scan user's row failed: %v", err)
@@ -190,7 +187,7 @@ func (db *Database) GetAccounts() ([]*entity.Account, error) {
 	return accList, nil
 }
 
-func (db *Database) getAccountsAssets(acc *entity.Account) error {
+func (db *Database) getAccountsAssets(acc *entity.PublicAccount) error {
 	acc.Assets = []*entity.UserAsset{}
 
 	q := `SELECT asset,amount FROM user_assets WHERE login = ? ORDER BY asset`
@@ -228,15 +225,20 @@ func (db *Database) GetAccount(login string) (*entity.Account, error) {
 	}
 
 	acc := entity.Account{
-		Login: login,
-		Assets: []*entity.UserAsset{},
+		PublicAccount:
+		entity.PublicAccount{
+			Login: login,
+			Assets: []*entity.UserAsset{},
+		},
 	}
 
-	if err = res1.Scan(&acc.Password, &acc.Email, &acc.Balance); err != nil {
-		log.Fatalf("scan user's balance failed: %v", err)
+	var pw string
+	if err = res1.Scan(&pw, &acc.Email, &acc.Balance); err != nil {
+		log.Fatalf("scan user's account row failed: %v", err)
 	}
+	acc.SetPassword(pw)
 
-	if err = db.getAccountsAssets(&acc); err != nil {
+	if err = db.getAccountsAssets(&acc.PublicAccount); err != nil {
 		return nil, err
 	}
 
@@ -321,17 +323,27 @@ func (db *Database) AddAccount(login string, password string, email string) erro
 		return errors.New("account exists already")
 	}
 
+	acc := entity.Account{
+		PublicAccount: entity.PublicAccount{
+			Login:   login,
+			Balance: decimal.NewFromFloat(100),
+			Assets:  nil,
+		},
+		Email:         sql.NullString{},
+	}
 	if password != "" {
-		password = HashEncodePassword(password)
+		acc.SetAndHashPassword(password)
 	}
 
-	var emailOrNull *string
 	if email != "" {
-		emailOrNull = &email
+		acc.Email = sql.NullString{
+			String: email,
+			Valid:  true,
+		}
 	}
 
 	q := "INSERT INTO users (login,password,balance,email) VALUES (?,?,?,?)"
-	_, err := db.Exec(q, login, password, 100, emailOrNull)
+	_, err := db.Exec(q, acc.Login, acc.GetPassword(), acc.Balance, acc.Email)
 	return err
 }
 
@@ -349,14 +361,17 @@ func (db *Database) UpdateAccount(login, password, email string) error {
 	}
 
 	if email != "" {
-		acc.Email = email
+		acc.Email = sql.NullString{
+			String: email,
+			Valid:  true,
+		}
 	}
 
 	if password != "" {
-		acc.Password = HashEncodePassword(password)
+		acc.SetAndHashPassword(password)
 	}
 
-	q := "UPDATE users set (password,email) VALUES (?,?) WHERE login = ?"
-	_, err = db.Exec(q, acc.Email, acc.Password, login)
+	q := "UPDATE users SET password=?, email=? WHERE login=?"
+	_, err = db.Exec(q, acc.GetPassword(), acc.Email, login)
 	return err
 }
