@@ -76,13 +76,13 @@ func (db *Database) initDatabase() {
 		log.Fatalf("could not insert into users table: %v", err)
 	}
 
-	query3 := "CREATE TABLE assets (name varchar(64) PRIMARY KEY, price real NOT NULL)"
+	query3 := "CREATE TABLE market_assets (name varchar(64) PRIMARY KEY, price real NOT NULL)"
 	_, err = db.Exec(query3)
 	if err != nil {
 		log.Fatalf("could not create assets table: %v", err)
 	}
 
-	query31 := `INSERT INTO assets (name, price) VALUES 
+	query31 := `INSERT INTO market_assets (name, price) VALUES 
 			('white_wool',45),
 			('black_wool',42)`
 	_, err = db.Exec(query31)
@@ -90,13 +90,13 @@ func (db *Database) initDatabase() {
 		log.Fatalf("could not insert into assets table: %v", err)
 	}
 
-	query4 := `CREATE TABLE accounts (
+	query4 := `CREATE TABLE user_assets (
     login varchar(64), 
     asset varchar(255), 
     amount real NOT NULL, 
     PRIMARY KEY (login, asset), 
     FOREIGN KEY (login) REFERENCES users (login),
-    FOREIGN KEY (asset) REFERENCES assets (name)
+    FOREIGN KEY (asset) REFERENCES market_assets (name)
                       )`
 	_, err = db.Exec(query4)
 	if err != nil {
@@ -139,7 +139,7 @@ func (db *Database) GetAssets() ([]entity.MarketAsset, error) {
 
 	var assets []entity.MarketAsset
 
-	q := `SELECT name,price FROM assets ORDER BY name`
+	q := `SELECT name,price FROM market_assets ORDER BY name`
 	res, err := db.Query(q)
 	if err != nil {
 		log.Printf("query assets failed: %v", err)
@@ -193,7 +193,7 @@ func (db *Database) GetAccounts() ([]*entity.Account, error) {
 func (db *Database) getAccountsAssets(acc *entity.Account) error {
 	acc.Assets = []*entity.UserAsset{}
 
-	q := `SELECT asset,amount FROM accounts WHERE login = ? ORDER BY asset`
+	q := `SELECT asset,amount FROM user_assets WHERE login = ? ORDER BY asset`
 	res, err := db.Query(q, acc.Login)
 	if err != nil {
 		return fmt.Errorf("query account's assets failed: %v", err)
@@ -254,7 +254,7 @@ func (db *Database) SaveAccount(acc entity.Account) error {
 	}
 
 	for _, ass := range acc.Assets {
-		q2 := `UPDATE accounts SET amount = ? WHERE login = ? and asset = ?`
+		q2 := `UPDATE user_assets SET amount = ? WHERE login = ? and asset = ?`
 		stat, err := db.Exec(q2, ass.Amount, acc.Login, ass.Name)
 		if err != nil {
 			return fmt.Errorf("update asset's amount for user %v failed: %v", acc.Login, err)
@@ -262,7 +262,7 @@ func (db *Database) SaveAccount(acc entity.Account) error {
 
 		rows, _ := stat.RowsAffected()
 		if rows < 1 {
-			q3 := `INSERT INTO accounts (login, asset, amount) VALUES (?, ?, ?)`
+			q3 := `INSERT INTO user_assets (login, asset, amount) VALUES (?, ?, ?)`
 			_, err = db.Exec(q3, acc.Login, ass.Name, ass.Amount)
 			if err != nil {
 				return fmt.Errorf("insert asset %v for user %v failed: %v", ass.Name, acc.Login, err)
@@ -277,7 +277,7 @@ func (db *Database) GetAssetPrice(assetName string) (decimal.Decimal, error) {
 	dbMu.Lock()
 	defer dbMu.Unlock()
 
-	q := `SELECT price FROM assets WHERE name = ?`
+	q := `SELECT price FROM market_assets WHERE name = ?`
 	res, err := db.Query(q, assetName)
 	if err != nil {
 		return decimal.Zero, err
@@ -300,7 +300,7 @@ func (db *Database) SetAssetPrice(assetName string, price decimal.Decimal) error
 	dbMu.Lock()
 	defer dbMu.Unlock()
 
-	q1 := `UPDATE assets SET price = ? WHERE name = ?`
+	q1 := `UPDATE market_assets SET price = ? WHERE name = ?`
 	priceFloat, _ := price.Float64()
 	_, err := db.Exec(q1, priceFloat, assetName)
 	if err != nil {
