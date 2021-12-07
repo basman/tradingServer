@@ -145,13 +145,13 @@ func (s *server) handleIndex() gin.HandlerFunc {
 <body>
 	<h2>GET requests</h2>
 	<ul>
-	<li><a href="rates">assets and their rates</a></li>
-	<li><a href="account">account</a> - show your account</li>
-	<li><a href="accounts">accounts</a> - show all accounts</li>
+	<li><a href="rates">GET assets and their rates</a></li>
+	<li><a href="account">GET account</a> - show your account</li>
+	<li><a href="accounts">GET accounts</a> - show all accounts</li>
 	</ul>
 	<p/>
 	<h2>POST requests</h2>
-	<h3>/buy</h3>
+	<h3>POST /buy</h3>
 	A user can buy any amount of an asset as far as his balance allows from the market.
 	<p>
 	Example JSON input:<br/>
@@ -162,7 +162,7 @@ func (s *server) handleIndex() gin.HandlerFunc {
 }
 	</pre>
 
-	<h3>/sell</h3>
+	<h3>POST /sell</h3>
 	A user can sell any amount of an asset to the market as far as his account allows.
 	<p>
 	Example JSON input:<br/>
@@ -174,7 +174,7 @@ func (s *server) handleIndex() gin.HandlerFunc {
 	</pre>
 
 	<h2>Web sockets</h2>
-	<h3>/rates/stream</h3>
+	<h3>GET /rates/stream</h3>
 	Offers continuous price updates sent over a websocket, avoiding polling.<br/>
 	Each message sent to the client contains one price update for one asset.<br/>
 	<p>
@@ -186,10 +186,10 @@ func (s *server) handleIndex() gin.HandlerFunc {
 	</pre>
 	<p>
 	No request content to be sent. Just connect to this endpoint and receive realtime price updates.<br/>
-	Authentication is required, preserving the server's precious resources for people we trust. 
+	<b>Authentication is required</b>, preserving the server's precious resources for people we trust. 
 	<p>
 	<h4>Note on price accuracy</h4> 
-	The stream's accuracy is on best effort and might be delayed. There is no guarantee by the server that any transaction you initiate
+	The stream's message timeliness is limited to best effort and might be delayed. There is no guarantee by the server that any transaction you initiate
 	will use the last price you received. It might just as well be subject to a price update still to be transmitted.
 	<h4>Note on rounding</h4>
 	The server uses <a href="https://pkg.go.dev/github.com/shopspring/decimal">decimal number representation</a> internally for all amounts of money.
