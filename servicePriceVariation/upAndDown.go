@@ -5,29 +5,34 @@ import (
 	"log"
 	"math/rand"
 	"time"
+	"tradingServer/entity"
 	"tradingServer/storage"
 )
 
 const minimumUpdateIntervalSeconds = 0.02
 
 type PriceMaker struct {
-	assetName string
+	assetName    string
 	currentPrice decimal.Decimal
-	startPrice decimal.Decimal
+	startPrice   decimal.Decimal
 
 	targetPrice    decimal.Decimal
 	changeInterval float64
 	lastChange     time.Time
+
+	priceUpdates chan entity.MarketAsset
 }
 
-func NewPriceMaker(assetName string, startPrice decimal.Decimal) *PriceMaker {
+func NewPriceMaker(assetName string, startPrice decimal.Decimal, ev chan entity.MarketAsset) *PriceMaker {
 	pm := &PriceMaker{
 		assetName:    assetName,
 		currentPrice: startPrice,
-		startPrice: startPrice,
+		startPrice:   startPrice,
 
 		targetPrice: startPrice,
-		lastChange:   time.Now(),
+		lastChange:  time.Now(),
+
+		priceUpdates: ev,
 	}
 
 	pm.update()
@@ -76,6 +81,12 @@ func (pm *PriceMaker) step() {
 	}
 
 	pm.lastChange = time.Now()
+
+	pm.priceUpdates <- entity.MarketAsset{
+		Name:  pm.assetName,
+		Price: pm.currentPrice,
+		When: time.Now(),
+	}
 }
 
 func (pm *PriceMaker)generateTarget() {

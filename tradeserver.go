@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"tradingServer/entity"
 	"tradingServer/server"
 	"tradingServer/servicePriceVariation"
 	"tradingServer/serviceUser"
 	"tradingServer/storage"
 )
 
-func initPriceMakers() {
+func initPriceMakers(ev chan entity.MarketAsset) {
 	db := storage.GetDatabase()
 	assets, err := db.GetAssets()
 	if err != nil {
@@ -18,15 +19,14 @@ func initPriceMakers() {
 	}
 
 	for _, ass := range assets {
-		pm := servicePriceVariation.NewPriceMaker(ass.Name, ass.Price)
+		pm := servicePriceVariation.NewPriceMaker(ass.Name, ass.Price, ev)
 		go pm.Run()
 	}
 }
 
 func runServer() {
-	initPriceMakers()
-
 	s := server.NewServer()
+	initPriceMakers(s.GetEventInputChannel())
 	s.Run()
 }
 
