@@ -221,7 +221,9 @@ func (db *Database) getAccountsAssets(acc *entity.PublicAccount) error {
 			return fmt.Errorf("scan account's asset failed: %v", err)
 		}
 
-		acc.Assets = append(acc.Assets, ass)
+		if !ass.Amount.IsZero() {
+			acc.Assets = append(acc.Assets, ass)
+		}
 	}
 
 	return nil
