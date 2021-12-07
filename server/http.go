@@ -75,12 +75,12 @@ func (s *server) GetEventInputChannel() chan entity.MarketAsset {
 }
 
 func (s *server) routes() {
-	s.router.GET("/", s.handleIndex())
+	s.router.GET("/", s.accessLog(), s.handleIndex())
 
-	txProtected := s.router.Group("", s.DbTransaction())
+	txProtected := s.router.Group("", s.accessLog(), s.DbTransaction())
 	txProtected.GET("/rates", s.DbTransaction(), s.handleRates())
 
-	authenticated := txProtected.Group("", s.AuthRequired())
+	authenticated := txProtected.Group("", s.authRequired())
 	authenticated.GET("/account", s.handleAccount(false))
 	authenticated.GET("/accounts", s.handleAccount(true))
 	authenticated.POST("/buy", s.handleBuy())

@@ -130,6 +130,19 @@ func (db *Database) initDatabase() {
 	if err != nil {
 		log.Fatalf("failed to create table transaction_log: %v", err)
 	}
+
+	query7 := `CREATE TABLE access_log (
+	time VARCHAR(64),
+	duration REAL,
+	login VARCHAR(64),
+	path VARCHAR(255),
+	status INT,
+	address VARCHAR(255)
+)`
+	_, err = db.Exec(query7)
+	if err != nil {
+		log.Fatalf("failed to create table access_log: %v", err)
+	}
 }
 
 type TransactionLogEntry struct {
@@ -143,17 +156,27 @@ type TransactionLogEntry struct {
 	Balance float64
 }
 
-func (db *Database) LogTransaction(entry TransactionLogEntry) error {
+type AccessLogEntry struct {
+	Time time.Time
+	Duration float64
+	RemoteAddress string
+	Login string
+	Path string
+	StatusCode int
+}
+
+func (db *Database) LogAccess(e AccessLogEntry) error {
+	q := `INSERT INTO access_log (time,duration,login,status,address,path) VALUES (?,?,?,?,?,?)`
+	_, err := db.Exec(q, e.Time, e.Duration, e.Login, e.StatusCode, e.RemoteAddress, e.Path)
+	if err != nil {
+		return fmt.Errorf("write access log failed: %v", err)
+	}
+	return nil
+}
+
+func (db *Database) LogTransaction(e TransactionLogEntry) error {
 	q := `INSERT INTO transaction_log (time,login,action,unit_price,payed_price,amount,asset,balance) VALUES (?,?,?,?,?,?,?,?)`
-	_, err := db.Exec(q,
-		entry.Time,
-		entry.Login,
-		entry.Action,
-		entry.PricePerUnit,
-		entry.PricePayed,
-		entry.Amount,
-		entry.Asset,
-		entry.Balance)
+	_, err := db.Exec(q, e.Time, e.Login, e.Action, e.PricePerUnit, e.PricePayed, e.Amount, e.Asset, e.Balance)
 	if err != nil {
 		return fmt.Errorf("write transaction log failed: %v", err)
 	}

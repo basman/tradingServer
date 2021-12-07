@@ -9,6 +9,8 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
+	"tradingServer/storage"
 )
 
 func (s *server) DbTransaction() gin.HandlerFunc {
@@ -31,14 +33,14 @@ func (s *server) DbTransaction() gin.HandlerFunc {
 	}
 }
 
-func (s *server) AuthRequired() gin.HandlerFunc {
+func (s *server) authRequired() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		auth := c.GetHeader("Authorization")
 
 		login, pw, err := decodeAuthHeader(auth)
 		if err != nil {
 			log.Printf("authorization failed: %v", err)
-			c.Header("WWW-Authenticate","Basic realm=\"Hail to the king!\"")
+			c.Header("WWW-Authenticate", "Basic realm=\"Hail to the king!\"")
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
@@ -99,4 +101,32 @@ func decodeAuthHeader(authHeader string) (string, string, error) {
 	pw := string(buf[idxSep+1:])
 
 	return login, pw, nil
+}
+
+func (s *server) accessLog() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		start := time.Now()
+
+		c.Next()
+
+		duration := time.Now().Sub(start)
+
+		login, ok := c.Get("login")
+		if !ok {
+			login = ""
+		}
+
+		err := s.db.LogAccess(storage.AccessLogEntry{
+			Duration:      float64(duration.Microseconds())/1000000,
+			Login:         login.(string),
+			Path:          c.FullPath(),
+			RemoteAddress: c.Request.RemoteAddr,
+			StatusCode:    c.Writer.Status(),
+			Time:          time.Now(),
+		})
+
+		if err != nil {
+			log.Printf("%v", err)
+		}
+	}
 }
