@@ -77,7 +77,8 @@ func (s *server) handleIndex() gin.HandlerFunc {
 	<li><a href="rates">assets and their rates</a></li>
 	<li><a href="account">account</a> - show your account</li>
 	<li><a href="accounts">accounts</a> - show all accounts</li>
-	<p>
+	</ul>
+	<p/>
 	<h2>POST requests</h2>
 	<h3>/buy</h3>
 	A user can buy any amount of an asset as far as his balance allows from the market.
