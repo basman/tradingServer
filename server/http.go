@@ -53,7 +53,7 @@ func NewServer() *server {
 	s := &server{
 		db:     storage.GetDatabase(),
 		router: g,
-		priceUpdates: make(chan entity.MarketAsset, 10), // FIXME buffer size probably dependant on number of market assets in DB!
+		priceUpdates: make(chan entity.MarketAsset),
 	}
 
 	s.routes()

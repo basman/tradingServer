@@ -35,7 +35,7 @@ func NewPriceMaker(assetName string, startPrice decimal.Decimal, ev chan entity.
 		priceUpdates: ev,
 	}
 
-	pm.update()
+	pm.generateTarget()
 
 	return pm
 }
@@ -43,9 +43,8 @@ func NewPriceMaker(assetName string, startPrice decimal.Decimal, ev chan entity.
 // update progresses the price towards the current (secret) goal
 func (pm *PriceMaker) update() {
 	if pm.changeInterval == 0 {
-		pm.generateTarget()
+		panic("price maker's change interval has not been initialized (call generateTarget() before update())")
 	}
-
 	stepAmount := time.Now().Sub(pm.lastChange).Seconds() / pm.changeInterval
 
 	if pm.currentPrice.Sub(pm.targetPrice).Abs().LessThanOrEqual(decimal.NewFromFloat(stepAmount)) {
