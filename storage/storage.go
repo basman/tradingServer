@@ -51,7 +51,7 @@ func GetDatabase() *Database {
 	q := "PRAGMA foreign_keys = ON;"
 	_, err = sqlite3Db.Exec(q)
 	if err != nil {
-		log.Fatalln("could not activate foreign key checks")
+		log.Fatalf("could not activate foreign key checks: %v", err)
 	}
 
 	if freshlyCreated {

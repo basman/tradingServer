@@ -33,7 +33,7 @@ func runServer() {
 	} else {
 		log.SetOutput(f)
 	}
-	
+
 	initPriceMakers(s.GetEventInputChannel())
 	s.Run()
 }
