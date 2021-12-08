@@ -370,7 +370,15 @@ func (s *server) handlePriceStream() gin.HandlerFunc {
 			events: make(chan entity.MarketAsset, 1),
 		}
 
-		// FIXME start reading goroutine to detect disconnects early
+		go func() {
+			// read from client to detect disconnects early. we don't expect any data from client.
+			_, _, err := wsClient.ws.NextReader()
+			if err != nil {
+				log.Printf("websocket %v read failure detected. closing connection. err=%v", ws.RemoteAddr(), err)
+				wsClient.ws.Close()
+				//s.removeWsClient <- wsClient // disabled: write routine below shall initiate cleanup or that loop never returns and we get no access log
+			}
+		}()
 
 		// register websocket client to receive price changes
 		s.registerWsClient <- wsClient
