@@ -29,11 +29,13 @@ type streamClient struct {
 }
 
 type server struct {
-	db           *storage.Database
-	router       *gin.Engine
-	priceUpdates chan entity.MarketAsset
-	streamClients []*streamClient
-	streamClientsMu sync.RWMutex
+	db               *storage.Database
+	router           *gin.Engine
+	priceUpdates     chan entity.MarketAsset
+	streamClients    []*streamClient
+	streamClientsMu  sync.RWMutex
+	registerWsClient chan *streamClient
+	removeWsClient   chan *streamClient
 }
 
 func NewServer() *server {
@@ -54,7 +56,11 @@ func NewServer() *server {
 		db:     storage.GetDatabase(),
 		router: g,
 		priceUpdates: make(chan entity.MarketAsset),
+		registerWsClient: make(chan *streamClient),
+		removeWsClient: make(chan *streamClient),
 	}
+
+	go s.watchStreamClients()
 
 	s.routes()
 
@@ -99,31 +105,15 @@ func (s *server) forwardPriceChanges() {
 			client.events <- ev
 		}
 		s.streamClientsMu.RUnlock()
-
-		s.cleanupStreamClients()
 	}
 }
 
 func (s *server) cleanupStreamClients() {
-	// a bit over-engineered: only obtain a write lock if there is something to cleanup
-	n := 0
-	s.streamClientsMu.RLock()
-	for _, client := range s.streamClients {
-		if client == nil {
-			n++
-		}
-	}
-	s.streamClientsMu.RUnlock()
-
-	if n == 0 {
-		return
-	}
-
 	s.streamClientsMu.Lock()
 	defer s.streamClientsMu.Unlock()
 
 	var cleaned []*streamClient
-	n = 0
+	n := 0
 	for _, client := range s.streamClients {
 		if client != nil {
 			cleaned = append(cleaned, client)
@@ -375,20 +365,20 @@ func (s *server) handlePriceStream() gin.HandlerFunc {
 		}
 		defer ws.Close()
 
-		// register websocket client to receive price changes
-		s.streamClientsMu.Lock()
 		wsClient := &streamClient{
 			ws:     ws,
 			events: make(chan entity.MarketAsset, 1),
 		}
-		s.streamClients = append(s.streamClients, wsClient)
-		streamClientsIdx := len(s.streamClients)-1
-		s.streamClientsMu.Unlock()
+
+		// FIXME start reading goroutine to detect disconnects early
+
+		// register websocket client to receive price changes
+		s.registerWsClient <- wsClient
 
 		// handle price changes
 		for {
 			select {
-			case ev, ok := <- wsClient.events:
+			case ev, ok := <-wsClient.events:
 				if !ok {
 					log.Printf("client %v event channel closed", wsClient.ws.RemoteAddr())
 					break
@@ -399,13 +389,34 @@ func (s *server) handlePriceStream() gin.HandlerFunc {
 					log.Printf("client %v send over websocket failed: %v", wsClient.ws.RemoteAddr(), err)
 					wsClient.ws.Close()
 
-					s.streamClientsMu.Lock()
-					// mark websocket client as unusable
-					s.streamClients[streamClientsIdx] = nil
-					s.streamClientsMu.Unlock()
+					s.removeWsClient <- wsClient
 					return
 				}
 			}
+		}
+	}
+}
+
+func (s *server) watchStreamClients() {
+	for {
+		select {
+		case c := <- s.registerWsClient:
+			s.streamClientsMu.Lock()
+			s.streamClients = append(s.streamClients, c)
+			s.streamClientsMu.Unlock()
+
+		case c := <- s.removeWsClient:
+			// mark websocket client as unusable
+			s.streamClientsMu.Lock()
+			for i, c2 := range s.streamClients{
+				if c == c2 {
+					s.streamClients[i] = nil
+					break
+				}
+			}
+			s.streamClientsMu.Unlock()
+
+			s.cleanupStreamClients()
 		}
 	}
 }
