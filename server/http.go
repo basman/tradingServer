@@ -108,26 +108,6 @@ func (s *server) forwardPriceChanges() {
 	}
 }
 
-func (s *server) cleanupStreamClients() {
-	s.streamClientsMu.Lock()
-	defer s.streamClientsMu.Unlock()
-
-	var cleaned []*streamClient
-	n := 0
-	for _, client := range s.streamClients {
-		if client != nil {
-			cleaned = append(cleaned, client)
-		} else {
-			n++
-		}
-	}
-
-	if n > 0 {
-		log.Printf("removed %v stale websocket connections\n", n)
-		s.streamClients = cleaned
-	}
-}
-
 func (s *server) handleIndex() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Header("content", "text/html")
@@ -414,17 +394,19 @@ func (s *server) watchStreamClients() {
 			s.streamClientsMu.Unlock()
 
 		case c := <- s.removeWsClient:
-			// mark websocket client as unusable
 			s.streamClientsMu.Lock()
-			for i, c2 := range s.streamClients{
+			i := 0
+			var c2 *streamClient
+			for i, c2 = range s.streamClients{
 				if c == c2 {
 					s.streamClients[i] = nil
 					break
 				}
 			}
-			s.streamClientsMu.Unlock()
 
-			s.cleanupStreamClients()
+			s.streamClients = append(s.streamClients[:i], s.streamClients[i+1:]...)
+
+			s.streamClientsMu.Unlock()
 		}
 	}
 }
