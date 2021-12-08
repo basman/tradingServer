@@ -10,6 +10,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 	"tradingServer/entity"
@@ -41,14 +42,12 @@ type server struct {
 func NewServer() *server {
 	g := gin.New()
 
-	/*
-		// Disable Console Color, you don't need console color when writing the logs to file.
-		gin.DisableConsoleColor()
+	// Disable Console Color, you don't need console color when writing the logs to file.
+	gin.DisableConsoleColor()
 
-		// Logging to a file.
-		f, _ := os.Create("gin.log")
-		gin.DefaultWriter = io.MultiWriter(f)
-	*/
+	// Logging to a file.
+	f, _ := os.Create("gin.log")
+	gin.DefaultWriter = io.MultiWriter(f)
 
 	g.SetTrustedProxies(nil)
 

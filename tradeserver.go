@@ -26,6 +26,14 @@ func initPriceMakers(ev chan entity.MarketAsset) {
 
 func runServer() {
 	s := server.NewServer()
+
+	f, err := os.OpenFile("tradingServer.log", os.O_WRONLY | os.O_APPEND | os.O_CREATE, 0644)
+	if err != nil {
+		log.Printf("failed to open or create tradingServer.log: %v", err)
+	} else {
+		log.SetOutput(f)
+	}
+	
 	initPriceMakers(s.GetEventInputChannel())
 	s.Run()
 }
