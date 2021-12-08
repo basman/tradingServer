@@ -122,7 +122,7 @@ func (s *server) accessLog() gin.HandlerFunc {
 			Path:          c.FullPath(),
 			RemoteAddress: c.Request.RemoteAddr,
 			StatusCode:    c.Writer.Status(),
-			Time:          time.Now(),
+			Time:          start,
 		})
 
 		if err != nil {
