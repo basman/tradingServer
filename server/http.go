@@ -2,8 +2,6 @@ package server
 
 import (
 	"encoding/json"
-	"errors"
-	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"github.com/shopspring/decimal"
@@ -198,7 +196,7 @@ func (s *server) handleBuy() gin.HandlerFunc {
 		}
 
 		if !trans.Amount.IsPositive() {
-			c.AbortWithError(http.StatusBadRequest, errors.New("amount must be positive"))
+			c.AbortWithStatusJSON(http.StatusBadRequest, newUserError("amount must be positive"))
 		}
 
 		price, err := s.db.GetAssetPrice(trans.Asset)
@@ -219,8 +217,8 @@ func (s *server) handleBuy() gin.HandlerFunc {
 		}
 
 		if price.Mul(trans.Amount).GreaterThan(balance) {
-			c.AbortWithError(http.StatusBadRequest,
-				fmt.Errorf("Not enough funds. You want to spend %v but only have %v.",
+			c.AbortWithStatusJSON(http.StatusBadRequest,
+				newUserError("Not enough funds. You want to spend %v but only have %v.",
 					price.Mul(trans.Amount), balance))
 		}
 
@@ -259,7 +257,7 @@ func (s *server) handleSell() gin.HandlerFunc {
 		}
 
 		if !trans.Amount.IsPositive() {
-			c.AbortWithError(http.StatusBadRequest, errors.New("amount must be positive"))
+			c.AbortWithStatusJSON(http.StatusBadRequest, newUserError("amount must be positive"))
 			return
 		}
 
@@ -278,8 +276,8 @@ func (s *server) handleSell() gin.HandlerFunc {
 		asset := acc.GetOrCreateUserAsset(trans.Asset)
 
 		if asset.Amount.LessThan(trans.Amount) {
-			c.AbortWithError(http.StatusBadRequest,
-				fmt.Errorf("you can not sell more of %v than you currently have (%v)",
+			c.AbortWithStatusJSON(http.StatusBadRequest,
+				newUserError("you can not sell more of %v than you currently have (%v)",
 					trans.Asset, asset.Amount))
 			return
 		}
