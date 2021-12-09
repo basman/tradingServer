@@ -295,8 +295,12 @@ func (db *Database) GetAccount(login string) (*entity.Account, error) {
 	}
 
 	var pw string
-	if err = res1.Scan(&pw, &acc.Email, &acc.Balance); err != nil {
+	var email sql.NullString
+	if err = res1.Scan(&pw, &email, &acc.Balance); err != nil {
 		log.Fatalf("scan user's account row failed: %v", err)
+	}
+	if email.Valid {
+		acc.Email = email.String
 	}
 	acc.SetPassword(pw)
 
@@ -391,21 +395,22 @@ func (db *Database) AddAccount(login string, password string, email string) erro
 			Balance: decimal.NewFromFloat(100),
 			Assets:  nil,
 		},
-		Email:         sql.NullString{},
 	}
 	if password != "" {
 		acc.SetAndHashPassword(password)
 	}
 
 	if email != "" {
-		acc.Email = sql.NullString{
-			String: email,
-			Valid:  true,
-		}
+		acc.Email = email
+	}
+
+	emailOrNull := sql.NullString{
+		String: acc.Email,
+		Valid:  acc.Email != "",
 	}
 
 	q := "INSERT INTO users (login,password,balance,email) VALUES (?,?,?,?)"
-	_, err := db.Exec(q, acc.Login, acc.GetPassword(), acc.Balance, acc.Email)
+	_, err := db.Exec(q, acc.Login, acc.GetPassword(), acc.Balance, emailOrNull)
 	return err
 }
 
@@ -423,10 +428,7 @@ func (db *Database) UpdateAccount(login, password, email string) error {
 	}
 
 	if email != "" {
-		acc.Email = sql.NullString{
-			String: email,
-			Valid:  true,
-		}
+		acc.Email = email
 	}
 
 	if password != "" {

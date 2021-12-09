@@ -2,7 +2,6 @@ package entity
 
 import (
 	"crypto/sha1"
-	"database/sql"
 	"encoding/base64"
 	"github.com/shopspring/decimal"
 	"log"
@@ -22,7 +21,7 @@ type PublicAccount struct {
 
 type Account struct {
 	PublicAccount
-	Email    sql.NullString
+	Email    string
 	password string
 }
 
