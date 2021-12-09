@@ -54,6 +54,12 @@ func GetDatabase() *Database {
 		log.Fatalf("could not activate foreign key checks: %v", err)
 	}
 
+	q2 := "PRAGMA journal_mode = WAL;"
+	_, err = sqlite3Db.Exec(q2)
+	if err != nil {
+		log.Fatalf("could not switch journal mode to WAL: %v", err)
+	}
+
 	if freshlyCreated {
 		db.initDatabase()
 	}
