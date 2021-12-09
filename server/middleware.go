@@ -52,12 +52,14 @@ func (s *server) authRequired() gin.HandlerFunc {
 			return
 		}
 		if acc == nil {
+			log.Printf("authorization failed: login '%v' unknown", login)
 			c.Header("WWW-Authenticate","Basic realm=\"Hail to the king!\"")
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
 
 		if !acc.VerifyPassword(pw) {
+			log.Printf("authorization failed: password mismatch for login '%v': got '%v'", login, pw)
 			c.Header("WWW-Authenticate","Basic realm=\"Hail to the king!\"")
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return
