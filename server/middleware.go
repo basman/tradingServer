@@ -53,7 +53,8 @@ func (s *server) authRequired() gin.HandlerFunc {
 		acc, err := s.db.GetAccount(login)
 		if err != nil {
 			log.Printf("login query failed: %v", err)
-			c.AbortWithStatus(http.StatusInternalServerError)
+			c.Header("WWW-Authenticate","Basic realm=\"Hail to the king!\"")
+			c.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
 		if acc == nil {
