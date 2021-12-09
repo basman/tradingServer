@@ -85,7 +85,7 @@ func (s *server) routes() {
 	txProtected := s.router.Group("", s.accessLog(), s.dbTransaction())
 	txProtected.GET("/rates", s.rateLimit("rates", 5), s.dbTransaction(), s.handleRates())
 
-	authenticated := txProtected.Group("", s.authRequired(), s.rateLimit("auth", 100))
+	authenticated := txProtected.Group("", s.authRequired(), s.rateLimit("auth", 10))
 	authenticated.GET("/account", s.handleAccount(false))
 	authenticated.GET("/accounts", s.handleAccount(true))
 	authenticated.POST("/buy", s.handleBuy())
