@@ -24,6 +24,11 @@ func (s *server) dbTransaction() gin.HandlerFunc {
 
 		c.Next()
 
+		if c.IsAborted() {
+			tx.Rollback()
+			return
+		}
+
 		err = tx.Commit()
 		if err != nil {
 			log.Printf("commit transaction failed: %v", err)
