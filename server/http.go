@@ -35,6 +35,7 @@ type server struct {
 	streamClientsMu  sync.RWMutex
 	registerWsClient chan *streamClient
 	removeWsClient   chan *streamClient
+	rateLimitState   requestRateLimit
 }
 
 func NewServer() *server {
@@ -50,11 +51,12 @@ func NewServer() *server {
 	g.SetTrustedProxies(nil)
 
 	s := &server{
-		db:     storage.GetDatabase(),
-		router: g,
-		priceUpdates: make(chan entity.MarketAsset),
+		db:               storage.GetDatabase(),
+		router:           g,
+		priceUpdates:     make(chan entity.MarketAsset),
 		registerWsClient: make(chan *streamClient),
-		removeWsClient: make(chan *streamClient),
+		removeWsClient:   make(chan *streamClient),
+		rateLimitState:   requestRateLimit{},
 	}
 
 	go s.watchStreamClients()
@@ -78,12 +80,12 @@ func (s *server) GetEventInputChannel() chan entity.MarketAsset {
 }
 
 func (s *server) routes() {
-	s.router.GET("/", s.accessLog(), s.handleIndex())
+	s.router.GET("/", s.accessLog(), s.rateLimit("index", 0.1), s.handleIndex())
 
 	txProtected := s.router.Group("", s.accessLog(), s.dbTransaction())
-	txProtected.GET("/rates", s.dbTransaction(), s.handleRates())
+	txProtected.GET("/rates", s.rateLimit("rates", 5), s.dbTransaction(), s.handleRates())
 
-	authenticated := txProtected.Group("", s.authRequired())
+	authenticated := txProtected.Group("", s.authRequired(), s.rateLimit("auth", 100))
 	authenticated.GET("/account", s.handleAccount(false))
 	authenticated.GET("/accounts", s.handleAccount(true))
 	authenticated.POST("/buy", s.handleBuy())

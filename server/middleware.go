@@ -138,3 +138,15 @@ func (s *server) accessLog() gin.HandlerFunc {
 		}
 	}
 }
+
+func (s *server) rateLimit(group string, reqPerSec float64) gin.HandlerFunc {
+	s.rateLimitState.setRequestRate(group, reqPerSec)
+
+	return func(c *gin.Context) {
+		if s.rateLimitState.CheckAndUpdate(group) {
+			c.Next()
+		} else {
+			c.AbortWithStatusJSON(http.StatusTooManyRequests, newUserError("rate limit of %v requests per second exceeded", reqPerSec))
+		}
+	}
+}
