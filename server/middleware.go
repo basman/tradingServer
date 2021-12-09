@@ -13,7 +13,7 @@ import (
 	"tradingServer/storage"
 )
 
-func (s *server) DbTransaction() gin.HandlerFunc {
+func (s *server) dbTransaction() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tx, err := s.db.Begin()
 		if err != nil {
