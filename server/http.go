@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"github.com/shopspring/decimal"
@@ -23,8 +24,9 @@ type Server interface {
 
 type streamClient struct {
 	ws *websocket.Conn
-	sync.Mutex
+	sync.RWMutex
 	events chan entity.MarketAsset
+	shutdown bool
 }
 
 type server struct {
@@ -101,7 +103,12 @@ func (s *server) forwardPriceChanges() {
 			if client == nil {
 				continue
 			}
-			client.events <- ev
+
+			client.RLock()
+			if !client.shutdown {
+				client.events <- ev
+			}
+			client.RUnlock()
 		}
 		s.streamClientsMu.RUnlock()
 	}
@@ -356,6 +363,10 @@ func (s *server) handlePriceStream() gin.HandlerFunc {
 				log.Printf("websocket %v read failure detected. closing connection. err=%v", ws.RemoteAddr(), err)
 			}
 			wsClient.ws.Close()
+
+			wsClient.Lock()
+			wsClient.shutdown = true
+			wsClient.Unlock()
 			//s.removeWsClient <- wsClient // disabled: write routine below shall initiate cleanup or that loop never returns and we get no access log
 		}()
 
@@ -375,6 +386,10 @@ func (s *server) handlePriceStream() gin.HandlerFunc {
 				if err != nil {
 					log.Printf("client %v send over websocket failed: %v", wsClient.ws.RemoteAddr(), err)
 					wsClient.ws.Close()
+
+					wsClient.Lock()
+					wsClient.shutdown = true
+					wsClient.Unlock()
 
 					s.removeWsClient <- wsClient
 					return
@@ -413,6 +428,10 @@ func (s *server) watchStreamClients() {
 func (wsClient *streamClient) sendEvent(ev entity.MarketAsset) error {
 	wsClient.Lock()
 	defer wsClient.Unlock()
+
+	if wsClient.shutdown {
+		return errors.New("client shutting down")
+	}
 
 	// enforce fast client readout
 	wsClient.ws.SetWriteDeadline(time.Now().Add(1*time.Second))
