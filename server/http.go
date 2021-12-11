@@ -34,7 +34,6 @@ type server struct {
 	router           *gin.Engine
 	priceUpdates     chan entity.MarketAsset
 	streamClients    []*streamClient
-	streamClientsMu  sync.RWMutex
 	registerWsClient chan *streamClient
 	removeWsClient   chan *streamClient
 	rateLimitState   requestRateLimit
@@ -61,15 +60,13 @@ func NewServer() *server {
 		rateLimitState:   requestRateLimit{},
 	}
 
-	go s.watchStreamClients()
-
 	s.routes()
 
 	return s
 }
 
 func (s *server) Run() {
-	go s.forwardPriceChanges()
+	go s.handleStreamClients()
 
 	err := s.router.Run(":8002")
 	if err != nil {
@@ -94,24 +91,6 @@ func (s *server) routes() {
 	authenticated.POST("/sell", s.handleSell())
 
 	authenticated.GET("/rates/stream", s.handlePriceStream())
-}
-
-func (s *server) forwardPriceChanges() {
-	for ev := range s.priceUpdates {
-		s.streamClientsMu.RLock()
-		for _, client := range s.streamClients {
-			if client == nil {
-				continue
-			}
-
-			client.RLock()
-			if !client.shutdown {
-				client.events <- ev
-			}
-			client.RUnlock()
-		}
-		s.streamClientsMu.RUnlock()
-	}
 }
 
 func (s *server) handleIndex() gin.HandlerFunc {
@@ -360,7 +339,9 @@ func (s *server) handlePriceStream() gin.HandlerFunc {
 			// read from client to detect disconnects early. we don't expect any data from client.
 			_, _, err := wsClient.ws.NextReader()
 			if err != nil {
-				log.Printf("websocket %v read failure detected. closing connection. err=%v", ws.RemoteAddr(), err)
+				log.Printf("websocket %v read failure detected. closing connection.", ws.RemoteAddr())
+			} else {
+				log.Printf("websocket %v received data unexpectedly. closing connection.", ws.RemoteAddr())
 			}
 			wsClient.ws.Close()
 
@@ -399,19 +380,16 @@ func (s *server) handlePriceStream() gin.HandlerFunc {
 	}
 }
 
-func (s *server) watchStreamClients() {
+func (s *server) handleStreamClients() {
 	for {
 		select {
-		case c := <- s.registerWsClient:
-			s.streamClientsMu.Lock()
+		case c := <-s.registerWsClient:
 			s.streamClients = append(s.streamClients, c)
-			s.streamClientsMu.Unlock()
 
-		case c := <- s.removeWsClient:
-			s.streamClientsMu.Lock()
+		case c := <-s.removeWsClient:
 			i := 0
 			var c2 *streamClient
-			for i, c2 = range s.streamClients{
+			for i, c2 = range s.streamClients {
 				if c == c2 {
 					s.streamClients[i] = nil
 					break
@@ -420,7 +398,18 @@ func (s *server) watchStreamClients() {
 
 			s.streamClients = append(s.streamClients[:i], s.streamClients[i+1:]...)
 
-			s.streamClientsMu.Unlock()
+		case ev := <-s.priceUpdates:
+			for _, client := range s.streamClients {
+				if client == nil {
+					continue
+				}
+
+				client.RLock()
+				if !client.shutdown {
+					client.events <- ev
+				}
+				client.RUnlock()
+			}
 		}
 	}
 }
