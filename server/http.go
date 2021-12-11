@@ -354,9 +354,9 @@ func (s *server) handlePriceStream() gin.HandlerFunc {
 			_, _, err := wsClient.ws.NextReader()
 			if err != nil {
 				log.Printf("websocket %v read failure detected. closing connection. err=%v", ws.RemoteAddr(), err)
-				wsClient.ws.Close()
-				//s.removeWsClient <- wsClient // disabled: write routine below shall initiate cleanup or that loop never returns and we get no access log
 			}
+			wsClient.ws.Close()
+			//s.removeWsClient <- wsClient // disabled: write routine below shall initiate cleanup or that loop never returns and we get no access log
 		}()
 
 		// register websocket client to receive price changes
