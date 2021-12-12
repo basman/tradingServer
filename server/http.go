@@ -2,7 +2,6 @@ package server
 
 import (
 	"encoding/json"
-	"errors"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"github.com/shopspring/decimal"
@@ -22,13 +21,6 @@ type Server interface {
 	GetEventInputChannel() chan entity.MarketAsset
 }
 
-type streamClient struct {
-	ws *websocket.Conn
-	sync.RWMutex
-	events chan entity.MarketAsset
-	shutdown bool
-}
-
 type server struct {
 	db               *storage.Database
 	router           *gin.Engine
@@ -37,6 +29,13 @@ type server struct {
 	registerWsClient chan *streamClient
 	removeWsClient   chan *streamClient
 	rateLimitState   requestRateLimit
+}
+
+type streamClient struct {
+	ws *websocket.Conn
+	sync.RWMutex
+	events chan entity.MarketAsset
+	shutdown bool
 }
 
 func NewServer() *server {
@@ -55,8 +54,8 @@ func NewServer() *server {
 		db:               storage.GetDatabase(),
 		router:           g,
 		priceUpdates:     make(chan entity.MarketAsset),
-		registerWsClient: make(chan *streamClient),
-		removeWsClient:   make(chan *streamClient),
+		registerWsClient: make(chan *streamClient, 10),
+		removeWsClient:   make(chan *streamClient, 10),
 		rateLimitState:   requestRateLimit{},
 	}
 
@@ -66,7 +65,7 @@ func NewServer() *server {
 }
 
 func (s *server) Run() {
-	go s.handleStreamClients()
+	go s.serveStreamClients()
 
 	err := s.router.Run(":8002")
 	if err != nil {
@@ -343,50 +342,52 @@ func (s *server) handlePriceStream() gin.HandlerFunc {
 			} else {
 				log.Printf("websocket %v received data unexpectedly. closing connection.", ws.RemoteAddr())
 			}
-			wsClient.ws.Close()
-
-			wsClient.Lock()
-			wsClient.shutdown = true
-			wsClient.Unlock()
-			//s.removeWsClient <- wsClient // disabled: write routine below shall initiate cleanup or that loop never returns and we get no access log
+			s.removeWsClient <- wsClient
 		}()
 
 		// register websocket client to receive price changes
 		s.registerWsClient <- wsClient
 
-		// handle price changes
-		for {
-			select {
-			case ev, ok := <-wsClient.events:
-				if !ok {
-					log.Printf("client %v event channel closed", wsClient.ws.RemoteAddr())
-					break
-				}
+		// send price changes
+		for ev := range wsClient.events {
+			err := wsClient.sendEvent(ev)
 
-				err := wsClient.sendEvent(ev)
-				if err != nil {
-					log.Printf("client %v send over websocket failed: %v", wsClient.ws.RemoteAddr(), err)
-					wsClient.ws.Close()
-
-					wsClient.Lock()
-					wsClient.shutdown = true
-					wsClient.Unlock()
-
-					s.removeWsClient <- wsClient
-					return
-				}
+			if err != nil {
+				log.Printf("client %v send over websocket failed: %v", wsClient.ws.RemoteAddr(), err)
+				s.removeWsClient <- wsClient
+				// stay in the loop to consume remaining events. serveStreamClients will close the channel and trigger shutdown.
 			}
 		}
 	}
 }
 
-func (s *server) handleStreamClients() {
+func (wsClient *streamClient) sendEvent(ev entity.MarketAsset) error {
+	wsClient.Lock()
+	defer wsClient.Unlock()
+
+	// enforce fast client readout
+	wsClient.ws.SetWriteDeadline(time.Now().Add(1*time.Second))
+	err := wsClient.ws.WriteJSON(ev)
+	// reset write timeout
+	wsClient.ws.SetWriteDeadline(time.Time{})
+
+	return err
+}
+
+func (s *server) serveStreamClients() {
 	for {
 		select {
 		case c := <-s.registerWsClient:
 			s.streamClients = append(s.streamClients, c)
 
 		case c := <-s.removeWsClient:
+			if c.shutdown {
+				break
+			}
+
+			c.shutdown = true
+			close(c.events)
+
 			i := 0
 			var c2 *streamClient
 			for i, c2 = range s.streamClients {
@@ -404,31 +405,12 @@ func (s *server) handleStreamClients() {
 					continue
 				}
 
-				client.RLock()
 				if !client.shutdown {
 					client.events <- ev
 				}
-				client.RUnlock()
 			}
 		}
 	}
-}
-
-func (wsClient *streamClient) sendEvent(ev entity.MarketAsset) error {
-	wsClient.Lock()
-	defer wsClient.Unlock()
-
-	if wsClient.shutdown {
-		return errors.New("client shutting down")
-	}
-
-	// enforce fast client readout
-	wsClient.ws.SetWriteDeadline(time.Now().Add(1*time.Second))
-
-	// don't forget to reset write timeout BEFORE lifting the lock
-	defer wsClient.ws.SetWriteDeadline(time.Time{})
-
-	return wsClient.ws.WriteJSON(ev)
 }
 
 func getBalanceFromContext(c *gin.Context) (decimal.Decimal, bool) {
