@@ -8,6 +8,7 @@ import (
 	"github.com/shopspring/decimal"
 	"log"
 	"os"
+	"strings"
 	"sync"
 	"time"
 	"tradingServer/entity"
@@ -438,4 +439,23 @@ func (db *Database) UpdateAccount(login, password, email string) error {
 	q := "UPDATE users SET password=?, email=? WHERE login=?"
 	_, err = db.Exec(q, acc.GetPassword(), acc.Email, login)
 	return err
+}
+
+func (db *Database) CreateMarketAsset(asset entity.MarketAsset) error {
+	if asset.Price.IsNegative() || asset.Price.IsZero() {
+		return errors.New("invalid price: must be positive")
+	}
+
+	q := `INSERT INTO market_assets (name,price) VALUES (?,?)`
+	res, err := db.Exec(q, asset.Name, asset.Price.InexactFloat64())
+	if err != nil {
+		if strings.Index(err.Error(), "UNIQUE constraint") >= 0 {
+			return errors.New("asset already exists")
+		}
+		return err
+	}
+	if n, err2 := res.RowsAffected(); n != 1 {
+		return fmt.Errorf("row has not been inserted: %v", err2)
+	}
+	return nil
 }

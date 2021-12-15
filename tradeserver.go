@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"tradingServer/entity"
 	"tradingServer/server"
+	"tradingServer/serviceMarket"
 	"tradingServer/servicePriceVariation"
 	"tradingServer/serviceUser"
 	"tradingServer/storage"
@@ -66,6 +68,22 @@ func main() {
 				email = os.Args[4]
 			}
 			serviceUser.AddUser(login, password, email)
+		case "addasset":
+			if len(os.Args) < 3 {
+				fmt.Printf("missing arguments: %v addasset <name> <price>\n", os.Args[0])
+				os.Exit(1)
+			}
+			name, priceStr := os.Args[2], os.Args[3]
+			price, err := strconv.ParseFloat(priceStr, 64)
+			if err != nil {
+				fmt.Printf("price is not a number: %v", priceStr)
+				os.Exit(1)
+			}
+			err = serviceMarket.AddAsset(name, price)
+			if err != nil {
+				fmt.Println(err.Error())
+				os.Exit(1)
+			}
 		case "setpw":
 			if len(os.Args) < 3 {
 				fmt.Printf("missing arguments: %v setpw <login> <password>\n", os.Args[0])
