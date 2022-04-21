@@ -9,7 +9,7 @@ import (
 	"tradingServer/storage"
 )
 
-const minimumUpdateIntervalSeconds = 0.02
+const minimumUpdateIntervalSeconds = 0.2
 
 type PriceMaker struct {
 	assetName    string
@@ -84,17 +84,17 @@ func (pm *PriceMaker) step() {
 	pm.priceUpdates <- entity.MarketAsset{
 		Name:  pm.assetName,
 		Price: pm.currentPrice,
-		When: time.Now(),
+		When:  time.Now(),
 	}
 }
 
-func (pm *PriceMaker)generateTarget() {
+func (pm *PriceMaker) generateTarget() {
 	// pick new random price variation [0,startPrice * 0.2]
-	delta := decimal.NewFromFloat((rand.Float64()-0.5) * 0.2)
+	delta := decimal.NewFromFloat((rand.Float64() - 0.5) * 0.2)
 	pm.targetPrice = pm.startPrice.Add(pm.startPrice.Mul(delta))
 
 	// pick a random change interval (in seconds) from range [1,10]
-	pm.changeInterval = 9 * rand.Float64() + 1
+	pm.changeInterval = 9*rand.Float64() + 1
 
 	//deltaAbs := pm.startPrice.Mul(delta).Div(decimal.NewFromFloat(pm.changeInterval))
 	//log.Printf("PriceMaker %v new target price %v (%.3fs; delta=%v/s)\n",
@@ -104,7 +104,7 @@ func (pm *PriceMaker)generateTarget() {
 	//	deltaAbs.StringFixed(3))
 }
 
-func (pm *PriceMaker)Run() {
+func (pm *PriceMaker) Run() {
 	for {
 		subInterval := pm.changeInterval / 100
 
