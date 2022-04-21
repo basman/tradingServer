@@ -89,8 +89,8 @@ func (pm *PriceMaker) step() {
 }
 
 func (pm *PriceMaker) generateTarget() {
-	// pick new random price variation [0,startPrice * 0.2]
-	delta := decimal.NewFromFloat((rand.Float64() - 0.5) * 0.2)
+	// pick new random price variation +-[0,startPrice/2 * 0.1]
+	delta := decimal.NewFromFloat((rand.Float64() - 0.5) * 0.1)
 	pm.targetPrice = pm.startPrice.Add(pm.startPrice.Mul(delta))
 
 	// pick a random change interval (in seconds) from range [1,10]
