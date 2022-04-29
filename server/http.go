@@ -34,7 +34,7 @@ type server struct {
 type streamClient struct {
 	ws *websocket.Conn
 	sync.RWMutex
-	events chan entity.MarketAsset
+	events   chan entity.MarketAsset
 	shutdown bool
 }
 
@@ -78,12 +78,12 @@ func (s *server) GetEventInputChannel() chan entity.MarketAsset {
 }
 
 func (s *server) routes() {
-	s.router.GET("/", s.accessLog(), s.rateLimit("index", 0.1), s.handleIndex())
+	s.router.GET("/", s.accessLog(), s.rateLimit("index", 10), s.handleIndex())
 
 	txProtected := s.router.Group("", s.accessLog(), s.dbTransaction())
-	txProtected.GET("/rates", s.rateLimit("rates", 5), s.dbTransaction(), s.handleRates())
+	txProtected.GET("/rates", s.rateLimit("rates", 20), s.dbTransaction(), s.handleRates())
 
-	authenticated := txProtected.Group("", s.authRequired(), s.rateLimit("auth", 10))
+	authenticated := txProtected.Group("", s.authRequired(), s.rateLimit("auth", 100))
 	authenticated.GET("/account", s.handleAccount(false))
 	authenticated.GET("/accounts", s.handleAccount(true))
 	authenticated.POST("/buy", s.handleBuy())
@@ -316,8 +316,8 @@ func (s *server) handleAccount(showAll bool) gin.HandlerFunc {
 
 func (s *server) handlePriceStream() gin.HandlerFunc {
 	upgrader := websocket.Upgrader{
-		HandshakeTimeout:  2*time.Second,
-		WriteBufferSize:   1024,
+		HandshakeTimeout: 2 * time.Second,
+		WriteBufferSize:  1024,
 	}
 
 	return func(c *gin.Context) {
@@ -366,7 +366,7 @@ func (wsClient *streamClient) sendEvent(ev entity.MarketAsset) error {
 	defer wsClient.Unlock()
 
 	// enforce fast client readout
-	wsClient.ws.SetWriteDeadline(time.Now().Add(1*time.Second))
+	wsClient.ws.SetWriteDeadline(time.Now().Add(1 * time.Second))
 	err := wsClient.ws.WriteJSON(ev)
 	// reset write timeout
 	wsClient.ws.SetWriteDeadline(time.Time{})
@@ -435,4 +435,3 @@ func getLoginFromContext(c *gin.Context) (string, bool) {
 	login := loginI.(string)
 	return login, true
 }
-
