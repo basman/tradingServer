@@ -109,19 +109,19 @@ func (db *Database) initDatabase() {
 	}
 
 	/*
-	query5 := `CREATE TABLE price_history
-(
-	time INT,
-	asset VARCHAR(255),
-	price REAL,
-	PRIMARY KEY(time, asset),
-	FOREIGN KEY (asset) REFERENCES assets (name)
-)`
-	_, err = db.Exec(query5)
-	if err != nil {
-		log.Fatalf("could not create price_history table: %v", err)
-	}
-	 */
+			query5 := `CREATE TABLE price_history
+		(
+			time INT,
+			asset VARCHAR(255),
+			price REAL,
+			PRIMARY KEY(time, asset),
+			FOREIGN KEY (asset) REFERENCES assets (name)
+		)`
+			_, err = db.Exec(query5)
+			if err != nil {
+				log.Fatalf("could not create price_history table: %v", err)
+			}
+	*/
 
 	query6 := `CREATE TABLE transaction_log (
 	time VARCHAR(64),
@@ -153,23 +153,23 @@ func (db *Database) initDatabase() {
 }
 
 type TransactionLogEntry struct {
-	Time   string
-	Login  string
-	Action string
-	PricePerUnit  float64
-	PricePayed float64
-	Amount float64
-	Asset  string
-	Balance float64
+	Time         string
+	Login        string
+	Action       string
+	PricePerUnit float64
+	PricePayed   float64
+	Amount       float64
+	Asset        string
+	Balance      float64
 }
 
 type AccessLogEntry struct {
-	Time time.Time
-	Duration float64
+	Time          time.Time
+	Duration      float64
 	RemoteAddress string
-	Login string
-	Path string
-	StatusCode int
+	Login         string
+	Path          string
+	StatusCode    int
 }
 
 func (db *Database) LogAccess(e AccessLogEntry) error {
@@ -288,9 +288,8 @@ func (db *Database) GetAccount(login string) (*entity.Account, error) {
 	}
 
 	acc := entity.Account{
-		PublicAccount:
-		entity.PublicAccount{
-			Login: login,
+		PublicAccount: entity.PublicAccount{
+			Login:  login,
 			Assets: []*entity.UserAsset{},
 		},
 	}
@@ -456,6 +455,42 @@ func (db *Database) CreateMarketAsset(asset entity.MarketAsset) error {
 	}
 	if n, err2 := res.RowsAffected(); n != 1 {
 		return fmt.Errorf("row has not been inserted: %v", err2)
+	}
+	return nil
+}
+
+func (db *Database) RemoveAccount(account *entity.PublicAccount) error {
+	if account == nil || account.Login == "" {
+		return fmt.Errorf("invalid account to be deleted: %v", account)
+	}
+
+	sql := `DELETE FROM user_assets WHERE login = ?`
+	res, err := db.Exec(sql, account.Login)
+	if err != nil {
+		return fmt.Errorf("delete from user_assets: %v", err)
+	}
+
+	sql = `DELETE FROM users WHERE login = ?`
+	res, err = db.Exec(sql, account.Login)
+	if err != nil {
+		return fmt.Errorf("delete from users: %v", err)
+	}
+
+	if n, err := res.RowsAffected(); n != 1 {
+		return fmt.Errorf("account %v has not been deleted: %v", account.Login, err)
+	}
+	return nil
+}
+
+func (db *Database) UpdateMarketAsset(name string, price float64) error {
+	sql := `UPDATE market_assets SET price = ? WHERE name = ?`
+	res, err := db.Exec(sql, price, name)
+	if err != nil {
+		return fmt.Errorf("update market_assets: %v", err)
+	}
+
+	if n, err := res.RowsAffected(); n != 1 {
+		return fmt.Errorf("market_asset %v could not be updated: %v", name, err)
 	}
 	return nil
 }

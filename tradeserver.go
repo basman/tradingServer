@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"tradingServer/entity"
 	"tradingServer/server"
 	"tradingServer/serviceMarket"
@@ -29,7 +30,7 @@ func initPriceMakers(ev chan entity.MarketAsset) {
 func runServer() {
 	s := server.NewServer()
 
-	f, err := os.OpenFile("tradingServer.log", os.O_WRONLY | os.O_APPEND | os.O_CREATE, 0644)
+	f, err := os.OpenFile("tradingServer.log", os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
 	if err != nil {
 		log.Printf("failed to open or create tradingServer.log: %v", err)
 	} else {
@@ -45,6 +46,8 @@ func usage() {
 commands:
 	adduser <login> <password> [<email>]
 		Create new user account.
+	initdb
+		Initialise database. User accounts and assets will be deleted.
 	setpw <login> <password>
 		Reset user's password.
 	setemail <login> <email>
@@ -84,6 +87,13 @@ func main() {
 				fmt.Println(err.Error())
 				os.Exit(1)
 			}
+		case "initdb":
+			if len(os.Args) > 2 {
+				fmt.Printf("invalid arguments: %v (initdb takes no parameters)\n", strings.Join(os.Args[2:], " "))
+			}
+
+			serviceUser.RemoveUsers()
+			serviceMarket.ResetPrices()
 		case "setpw":
 			if len(os.Args) < 3 {
 				fmt.Printf("missing arguments: %v setpw <login> <password>\n", os.Args[0])

@@ -2,6 +2,7 @@ package serviceUser
 
 import (
 	"log"
+	"tradingServer/entity"
 	"tradingServer/storage"
 )
 
@@ -12,7 +13,6 @@ func AddUser(login, password, email string) {
 	}
 
 	log.Printf("user account '%v' has been created\n", login)
-	db.Close()
 }
 
 func ChangeUser(login, password, email string) {
@@ -21,5 +21,28 @@ func ChangeUser(login, password, email string) {
 		log.Fatalf("could not update user account: %v", err)
 	}
 	log.Printf("user account '%v' has been updated\n", login)
-	db.Close()
+}
+
+// RemoveUsers deletes all user accounts except "roman"
+func RemoveUsers() {
+	const exception = "roman"
+	db := storage.GetDatabase()
+	var accs []*entity.PublicAccount
+	var err error
+	if accs, err = db.GetAccounts(); err != nil {
+		log.Fatalf("failed to list accounts: %v", err)
+	}
+
+	for _, a := range accs {
+		if a.Login == exception {
+			log.Printf("skipping account %v\n", a.Login)
+			continue
+		}
+
+		err = db.RemoveAccount(a)
+		if err != nil {
+			log.Fatalf("failed to remove account '%v': %v", a.Login, err)
+		}
+		log.Printf("deleted account '%v'\n", a.Login)
+	}
 }
