@@ -46,8 +46,10 @@ func usage() {
 commands:
 	adduser <login> <password> [<email>]
 		Create new user account.
-	initdb
-		Initialise database. User accounts and assets will be deleted.
+	resetdb
+		Reset database. User accounts and assets will be deleted.
+		Not really needed. Database will be initialised automatically upon first 
+ 		operation in case it does not exist.
 	setpw <login> <password>
 		Reset user's password.
 	setemail <login> <email>
@@ -87,7 +89,7 @@ func main() {
 				fmt.Println(err.Error())
 				os.Exit(1)
 			}
-		case "initdb":
+		case "resetdb":
 			if len(os.Args) > 2 {
 				fmt.Printf("invalid arguments: %v (initdb takes no parameters)\n", strings.Join(os.Args[2:], " "))
 			}
