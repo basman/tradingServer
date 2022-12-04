@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/shopspring/decimal"
+	"log"
 	"time"
 	"tradingServer/entity"
 	"tradingServer/storage"
@@ -33,14 +34,14 @@ func BuyAsset(acc *entity.Account, assetName string, amount decimal.Decimal) err
 	}
 
 	return db.LogTransaction(storage.TransactionLogEntry{
-		Time:   time.Now().Format(time.RFC3339),
-		Login:  acc.Login,
-		Action: "buy",
-		PricePerUnit:  assetPrice.InexactFloat64(),
-		PricePayed:  payedPrice.InexactFloat64(),
-		Amount: asset.Amount.InexactFloat64(),
-		Asset:  assetName,
-		Balance: acc.Balance.InexactFloat64(),
+		Time:         time.Now().Format(time.RFC3339),
+		Login:        acc.Login,
+		Action:       "buy",
+		PricePerUnit: assetPrice.InexactFloat64(),
+		PricePayed:   payedPrice.InexactFloat64(),
+		Amount:       asset.Amount.InexactFloat64(),
+		Asset:        assetName,
+		Balance:      acc.Balance.InexactFloat64(),
 	})
 }
 
@@ -68,13 +69,39 @@ func SellAsset(acc *entity.Account, assetName string, amount decimal.Decimal) er
 	}
 
 	return db.LogTransaction(storage.TransactionLogEntry{
-		Time:   time.Now().Format(time.RFC3339),
-		Login:  acc.Login,
-		Action: "sell",
-		PricePerUnit:  assetPrice.InexactFloat64(),
-		PricePayed:  payedPrice.InexactFloat64(),
-		Amount: asset.Amount.InexactFloat64(),
-		Asset:  assetName,
-		Balance: acc.Balance.InexactFloat64(),
+		Time:         time.Now().Format(time.RFC3339),
+		Login:        acc.Login,
+		Action:       "sell",
+		PricePerUnit: assetPrice.InexactFloat64(),
+		PricePayed:   payedPrice.InexactFloat64(),
+		Amount:       asset.Amount.InexactFloat64(),
+		Asset:        assetName,
+		Balance:      acc.Balance.InexactFloat64(),
 	})
+}
+
+func ResetLog() {
+	db := storage.GetDatabase()
+
+	q1 := `DELETE FROM access_log`
+	res, err := db.Exec(q1)
+	if err != nil {
+		log.Fatalf("failed clearing access log: %v", err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		log.Fatalf("clearing access log row count failed: %v", err)
+	}
+	log.Printf("Cleared %v rows from access log.\n", n)
+
+	q2 := `DELETE FROM transaction_log`
+	res, err = db.Exec(q2)
+	if err != nil {
+		log.Fatalf("failed clearing transaction log: %v", err)
+	}
+	n, err = res.RowsAffected()
+	if err != nil {
+		log.Fatalf("clearing transaction log row count failed: %v", err)
+	}
+	log.Printf("Cleared %v rows from transaction log.\n", n)
 }

@@ -10,6 +10,7 @@ import (
 	"tradingServer/server"
 	"tradingServer/serviceMarket"
 	"tradingServer/servicePriceVariation"
+	"tradingServer/serviceTrade"
 	"tradingServer/serviceUser"
 	"tradingServer/storage"
 )
@@ -48,7 +49,7 @@ commands:
 		Create new user account. Password will be generated and printed to 
 		console unless specified.
 	resetdb
-		Reset database. User accounts and assets will be deleted.
+		Reset database. User accounts, user assets and logs will be deleted.
 		Not really needed as database will be initialised automatically upon 
 		first operation in case it does not exist.
 	setpw <login> [<password>]
@@ -105,6 +106,7 @@ func main() {
 
 			serviceUser.RemoveUsers()
 			serviceMarket.ResetPrices()
+			serviceTrade.ResetLog()
 		case "setpw":
 			if len(os.Args) < 2 {
 				fmt.Printf("missing arguments: %v setpw <login> [<password>]\n", os.Args[0])

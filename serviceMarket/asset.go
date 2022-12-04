@@ -27,7 +27,6 @@ func ResetPrices() {
 	initialPrices["olive_oil"] = 127.0
 
 	db := storage.GetDatabase()
-	defer db.Close()
 
 	for name, price := range initialPrices {
 		err := db.UpdateMarketAsset(name, price)
