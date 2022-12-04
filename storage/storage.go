@@ -89,7 +89,10 @@ func (db *Database) initDatabase() {
 
 	query31 := `INSERT INTO market_assets (name, price) VALUES 
 			('white_wool',45),
-			('black_wool',42)`
+			('black_wool',42),
+			('toothpaste',8.5),
+			('old_tires',19.2),
+			('olive_oil',127)`
 	_, err = db.Exec(query31)
 	if err != nil {
 		log.Fatalf("could not insert into assets table: %v", err)
