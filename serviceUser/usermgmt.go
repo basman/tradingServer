@@ -43,7 +43,7 @@ func GenPassword(length int) string {
 
 func ChangeUser(login, password, email string) {
 	autogen := false
-	if password == "" {
+	if password == "" && email == "" {
 		autogen = true
 		password = GenPassword(24)
 	}
