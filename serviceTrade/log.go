@@ -73,7 +73,14 @@ func packLogAccess(row *sql.Rows) logEntry {
 		l.Login += ip
 	}
 
+	l.Time = convertTimestampAccessLog(l.Time)
+
 	return l
+}
+
+// convertTimestampAccessLog inserts 'T' between date and time expected in: 2022-12-09 12:13:59.480980086+01:00 out: 2022-12-09T12:13:59.480980086+01:00
+func convertTimestampAccessLog(timeStr string) string {
+	return strings.Replace(timeStr, " ", "T", 1)
 }
 
 func packLogTransaction(row *sql.Rows) logEntry {
