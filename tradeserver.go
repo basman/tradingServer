@@ -48,8 +48,9 @@ commands:
 	adduser <login> [<password>] [<email>]
 		Create new user account. Password will be generated and printed to 
 		console unless specified.
-	log
+	log [dump]
 		Show last 10 combined log messages from access and transaction log.
+		Dump will output the entire log.
 	resetdb
 		Reset database. User accounts, user assets and logs will be deleted.
 		Not really needed as database will be initialised automatically upon 
@@ -106,9 +107,8 @@ func main() {
 				// show last 10 messages of access log and transaction log
 				serviceTrade.ShowLastLog(10)
 			} else if os.Args[2] == "dump" {
-				// export CSV access log (optional: transactions)
-				fmt.Println("no yet implemented")
-				os.Exit(1)
+				// export combined access and transaction log
+				serviceTrade.ShowLastLog(-1)
 			} else if os.Args[2] == "tail" {
 				// live tracking of access log
 				fmt.Println("no yet implemented")
